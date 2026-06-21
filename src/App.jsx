@@ -253,7 +253,7 @@ export default function App() {
             </button>
           </div>
         </main>
-        <footer className="text-center py-6 text-xs text-[#959D90]">&copy; 2026 StudySprint</footer>
+        <footer className="text-center py-6 text-xs text-[#959D90]">&copy; 2026 StudySprint by Hayl</footer>
       </div>
     );
   }
