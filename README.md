@@ -1,45 +1,50 @@
+# StudySprint
 
-# StudySprint by Hayl
+A Pomodoro timer where every completed focus session grows a tree in your own forest.
 
-StudySprint is a simple study productivity web app built to help students stay focused while studying.
+Sign in, set a focus length, and start a session. When it ends, a tree gets added to your forest and your streak goes up. Alongside the timer there's a task list, a notes page, and a leaderboard if you want to compare totals with other people using the app.
 
-Instead of opening multiple apps, everything you need is in one place. A study timer, to do list, streak tracker, study statistics, and a small virtual forest that grows as you complete study sessions.
+## Features
 
-##  Features
+- **Timer** — customizable focus and break lengths, with a fullscreen mode
+- **Forest** — a tree for every completed session, tagged by subject
+- **Streak** — tracks consecutive days with a completed session
+- **Tasks** — a simple to-do list for the day
+- **Notes** — a freeform notes page for session logs or anything else
+- **Lofi player** — a 24/7 background stream you can toggle on or off
+- **Leaderboard** — see how your total focus minutes and streak compare to others
+- **Dark mode**
 
-- Grow a forest by completing study sessions
-- Pomodoro study timer
-- Simple to-do list
-- Daily study streak
-- Study statistics
-- Browser notification when the timer finishes
-- Responsive design for desktop and mobile
-- Smooth animations and modern UI
-- Confetti when you finish a session
+## Tech
 
-##  Built With
+- React
+- Firebase Auth (Google sign-in) and Firestore (leaderboard sync)
+- Tailwind CSS
+- `canvas-confetti` for session-complete celebration
+- `lucide-react` for icons
 
-- HTML
-- CSS
-- JavaScript
-
-##  Getting Started
-
-Clone the repository.
+## Getting started
 
 ```bash
 git clone https://github.com/hayl1109/studysprint.git
-npm run dev
-````
-and 
-That's it.
+cd studysprint
+npm install
+```
 
+You'll need a Firebase project with:
+- Authentication → Google sign-in enabled
+- Firestore → a `users` collection, with rules allowing authenticated users to read the collection and write only their own document
 
+Add your Firebase config to `src/firebase.js`, then run:
 
-##  Why I Made This
+```bash
+npm start
+```
 
-I wanted a study app that was clean, simple, and didn't feel overwhelming. Most productivity apps have too many features, so I decided to build something that helps me focus without distractions.
+## Notes on data
 
-**
-Thanks for HackClub
-**
+Tasks, notes, and session history are saved to your browser's local storage. Your name, photo, total focus minutes, and streak are also synced to Firestore so they can show up on the leaderboard.
+
+## License
+
+MIT
