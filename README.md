@@ -40,14 +40,6 @@ That's it.
 
 I wanted a study app that was clean, simple, and didn't feel overwhelming. Most productivity apps have too many features, so I decided to build something that helps me focus without distractions.
 
-
-## 🤝 Contributing
-
-Feel free to fork the project, open an issue, or submit a pull request if you have ideas to improve it.
-
-## 📄 License
-
-This project is open source under the MIT License.
-
-```
-```
+**
+Thanks for HackClub
+**
