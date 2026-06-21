@@ -9,7 +9,8 @@ const firebaseConfig = {
   storageBucket: "studysprint-41d8e.firebasestorage.app",
   messagingSenderId: "952033687173",
   appId: "1:952033687173:web:e1a91cc99e1dc56f80dbec",
-  measurementId: "G-2KPZY8GNNG"
+  measurementId: "G-2KPZY8GNNG",
+ apiCallbackUrl: import.meta.env.VITE_API_CALLBACK_URL || 'https://studysprint-orpin/api/callback'
 };
 
 
