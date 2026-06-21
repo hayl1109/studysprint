@@ -1,14 +1,53 @@
-# StudySprint by Hayl
-A Pomodoro timer where every completed session grows a virtual tree. 
+````md
+# 📚 StudySprint
 
-Features: 
+StudySprint is a simple study productivity web app built to help students stay focused while studying.
 
-1. ⏰ 25/5 timer 
+Instead of opening multiple apps, everything you need is in one place — a study timer, to-do list, streak tracker, study statistics, and a small virtual forest that grows as you complete study sessions.
 
-2. 🌳 Grow a forest
+## ✨ Features
 
-3. 📈 Daily streak 
+- 🌳 Grow a forest by completing study sessions
+- ⏱️ Pomodoro study timer
+- 📝 Simple to-do list
+- 🔥 Daily study streak
+- 📊 Study statistics
+- 🔔 Browser notification when the timer finishes
+- 📱 Responsive design for desktop and mobile
+- ✨ Smooth animations and modern UI
+- 🎉 Confetti when you finish a session
 
-4. 🎵 Lo-fi music Dark mode  
-  
-  Bonus:  Share your forest with friends.
+## 🛠️ Built With
+
+- HTML
+- CSS
+- JavaScript
+
+## 🚀 Getting Started
+
+Clone the repository.
+
+```bash
+git clone https://github.com/hayl1109/studysprint.git
+npm run dev
+````
+and 
+That's it.
+
+
+
+## 💡 Why I Made This
+
+I wanted a study app that was clean, simple, and didn't feel overwhelming. Most productivity apps have too many features, so I decided to build something that helps me focus without distractions.
+
+
+## 🤝 Contributing
+
+Feel free to fork the project, open an issue, or submit a pull request if you have ideas to improve it.
+
+## 📄 License
+
+This project is open source under the MIT License.
+
+```
+```
