@@ -242,7 +242,7 @@ export default function App() {
         </main>
 
         <footer className="text-center py-6 text-xs text-slate-500 max-w-7xl mx-auto w-full border-t border-slate-900/40">
-          &copy; 2026 StudySprint Inc.
+          &copy; 2026 StudySprint by Hayl
         </footer>
       </div>
     );
