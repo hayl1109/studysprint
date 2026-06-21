@@ -219,7 +219,10 @@ export default function App() {
           </button>
         </div>
 
-      
+        <main className="max-w-4xl mx-auto w-full px-6 py-12 grid grid-cols-1 md:grid-cols-2 gap-12 items-center my-auto">
+          <div className="space-y-6 text-center md:text-left">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border border-[#959D90]/20 bg-[#523D35]/20 text-[#BBA58F]">
+              <Sparkles className="w-3.5 h-3.5" /> <span>Workspace Operational</span>
             </div>
             <h1 className="text-4xl md:text-5xl font-serif font-normal tracking-tight leading-tight">
               Slow down. <br /> Grow your <span className="italic font-semibold text-[#BBA58F]">virtual sanctuary</span>.
@@ -290,7 +293,7 @@ export default function App() {
             { id: 'forest', label: 'My Sanctuary', icon: Leaf, count: forest.length },
             { id: 'todos', label: 'Intentions', icon: CheckSquare, count: todos.filter(t => !t.completed).length },
             { id: 'notes', label: 'Notebook', icon: FileText },
-            { id: 'leaderboard', label: 'The Leaderboard', icon: Award },
+            { id: 'leaderboard', label: 'The Lounge', icon: Award },
           ].map(tab => {
             const Icon = tab.icon;
             const isSelected = activeTab === tab.id;
