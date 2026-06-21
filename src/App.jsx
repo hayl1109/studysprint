@@ -48,99 +48,85 @@ export default function App() {
     ? ((totalSessionSeconds - currentSecondsLeft) / totalSessionSeconds) 
     : 0;
 
-  // Personal Authenticated Spotify Profile Configuration
-  const [spotifyToken, setSpotifyToken] = useState(null);
-  const [spotifyUser, setSpotifyUser] = useState(null);
-  const [playbackState, setPlaybackState] = useState({
-    trackName: 'No Track Playing',
-    artistName: 'Link Spotify Account',
-    albumArt: '',
-    isPlaying: false
-  });
+function App() {
+  // Lofi Audio Stream Controls
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [audioStream] = useState(new Audio('https://stream.zeno.fm/0r0xa792kwzuv')); // Continuous 24/7 Lofi Cafe Stream
 
-  const SPOTIFY_CLIENT_ID = '57e4d65ff990439aaffe8faee4eaf8c1'; // Replace this when deploying!
-  const SPOTIFY_REDIRECT_URI = 'https://studysprint-orpin.vercel.app/api/callback'; 
-  const SPOTIFY_AUTH_ENDPOINT = 'https://accounts.spotify.com/authorize';
-  const SCOPES = ['user-read-playback-state', 'user-modify-playback-state', 'user-read-currently-playing'];
-
-// Spotify OAuth Token Pipeline Detectors
-  useEffect(() => {
-    const hash = window.location.hash;
-    let token = window.localStorage.getItem('spotify_token');
-
-    // If there's no token in storage, but we just got redirected back with one in the URL hash
-    if (!token && hash) {
-      const params = new URLSearchParams(hash.substring(1)); // strip the leading '#'
-      const accessToken = params.get('access_token');
-      const refreshToken = params.get('refresh_token');
-
-      if (accessToken) {
-        token = accessToken;
-        window.localStorage.setItem('spotify_token', accessToken);
-        if (refreshToken) {
-          window.localStorage.setItem('spotify_refresh_token', refreshToken);
-        }
-        // Clean up the URL bar so it looks nice
-        window.location.hash = '';
-      }
+  const toggleLofiPlayback = () => {
+    if (isAudioPlaying) {
+      audioStream.pause();
+      setIsAudioPlaying(false);
+    } else {
+      audioStream.play().catch(err => console.log("Audio playback user gesture block:", err));
+      setIsAudioPlaying(true);
     }
-
-    if (token) {
-      setSpotifyToken(token);
-      fetchSpotifyUserData(token);
-    }
-  }, []);
-
-  const handleSpotifyLogin = () => {
-    window.location.href = `${SPOTIFY_AUTH_ENDPOINT}?client_id=${SPOTIFY_CLIENT_ID}&redirect_uri=${encodeURIComponent(SPOTIFY_REDIRECT_URI)}&scope=${encodeURIComponent(SCOPES.join(' '))}&response_type=code&show_dialog=true`;
   };
 
-const handleSpotifyLogout = () => {
-    setSpotifyToken(null);
-    setSpotifyUser(null);
-    window.localStorage.removeItem('spotify_token');
-    window.localStorage.removeItem('spotify_refresh_token');
-  };
-
-  const fetchSpotifyUserData = async (token) => {
-    try {
-      const res = await fetch('https://api.spotify.com/v1/me', { headers: { Authorization: `Bearer ${token}` } });
-      if (res.status === 401) return handleSpotifyLogout();
-      const data = await res.json();
-      setSpotifyUser(data);
-    } catch (err) { console.error(err); }
-  };
-
-  // Poll current live track playback device state data every 4 seconds
+  // Clean up and pause the background audio stream if the user closes or refreshes the tab
   useEffect(() => {
-    if (!spotifyToken) return;
-    const interval = setInterval(() => {
-      fetch('https://api.spotify.com/v1/me/player', { headers: { Authorization: `Bearer ${spotifyToken}` } })
-      .then(res => res.status === 204 ? null : res.json())
-      .then(data => {
-        if (!data || !data.item) return;
-        setPlaybackState({
-          trackName: data.item.name,
-          artistName: data.item.artists.map(a => a.name).join(', '),
-          albumArt: data.item.album.images[0]?.url || '',
-          isPlaying: data.is_playing
-        });
-      })
-      .catch(err => console.error(err));
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [spotifyToken]);
+    return () => {
+      audioStream.pause();
+    };
+  }, [audioStream]);
 
-const triggerSpotifyAction = async (endpoint, method = 'PUT') => {
-    if (!spotifyToken) return;
-    try {
-      await fetch(`https://api.spotify.com/v1/me/player/$${endpoint}`, {
-        method: method,
-        headers: { Authorization: `Bearer ${spotifyToken}` }
-      });
-    } catch (err) { console.error(err); }
-  };
+  return (
+    <div className="min-h-screen bg-gray-900 text-gray-100 flex flex-col items-center justify-center p-6 selection:bg-purple-500/30">
+      {/* App Header */}
+      <header className="mb-12 text-center">
+        <h1 className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
+          StudySprint
+        </h1>
+        <p className="text-sm text-gray-400 mt-2 tracking-wide">Your Ultimate Aesthetic Focus Dashboard</p>
+      </header>
 
+      {/* Main Workspace Layout Grid */}
+      <main className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+        
+        {/* LEFT COLUMN: Lofi Station Widget */}
+        <section className="bg-gray-800/60 backdrop-blur-md border border-gray-700 p-6 rounded-2xl shadow-xl flex flex-col items-center justify-between text-center min-h-[240px] transition-all duration-300 hover:border-purple-500/40">
+          <h3 className="text-xs font-bold tracking-widest text-purple-400 uppercase flex items-center gap-2">
+            🎵 LOFI CAFE STATION
+          </h3>
+          
+          <div className="my-2">
+            <p className="text-xl font-semibold text-gray-100">
+              {isAudioPlaying ? 'Streaming Live Vibes' : 'Station Paused'}
+            </p>
+            <p className="text-xs text-gray-400 mt-1.5 font-medium tracking-wide">24/7 Focus Beats</p>
+          </div>
+
+          <button
+            onClick={toggleLofiPlayback}
+            className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg ${
+              isAudioPlaying 
+                ? 'bg-purple-600 hover:bg-purple-700 text-white shadow-purple-900/40 animate-pulse' 
+                : 'bg-gray-700 hover:bg-gray-600 text-gray-200'
+            }`}
+          >
+            {isAudioPlaying ? (
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25v13.5m-7.5-13.5v13.5" />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6 ml-1">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" />
+              </svg>
+            )}
+          </button>
+        </section>
+
+        {/* RIGHT COLUMN: Focus Placeholder / Timer Space */}
+        <section className="bg-gray-800/40 border border-gray-700/60 p-6 rounded-2xl min-h-[240px] flex flex-col justify-center items-center text-center">
+          <span className="text-gray-500 text-sm">Your timers and tasks will fit perfectly over here.</span>
+        </section>
+
+      </main>
+    </div>
+  );
+}
+
+export default App;
   // Firebase Base Synchronization Engine (Restored!)
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
