@@ -58,7 +58,7 @@ export default function App() {
     isPlaying: false
   });
 
-  const SPOTIFY_CLIENT_ID = 'YOUR_SPOTIFY_CLIENT_ID'; // Replace this when deploying!
+  const SPOTIFY_CLIENT_ID = '57e4d65ff990439aaffe8faee4eaf8c1'; // Replace this when deploying!
   const SPOTIFY_REDIRECT_URI = window.location.origin; 
   const SPOTIFY_AUTH_ENDPOINT = 'https://accounts.spotify.com/authorize';
   const SCOPES = ['user-read-playback-state', 'user-modify-playback-state', 'user-read-currently-playing'];
