@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Timer, Leaf, CheckSquare, Flame, Moon, Sun, Plus, 
+import {
+  Timer, Leaf, CheckSquare, Flame, Moon, Sun, Plus,
   Trash2, Award, FileText, Settings, Play, Pause, RefreshCw, LogOut, Sparkles, Maximize2, Minimize2,
-  Music, SkipForward, SkipBack
+  Music
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
@@ -20,7 +20,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('timer');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const fullscreenRef = useRef(null);
-  
+
   // Custom Timer States
   const [customWork, setCustomWork] = useState(25);
   const [customBreak, setCustomBreak] = useState(5);
@@ -41,24 +41,20 @@ export default function App() {
   const [streak, setStreak] = useState(() => Number(localStorage.getItem('ss_streak')) || 0);
   const [stats, setStats] = useState(() => JSON.parse(localStorage.getItem('ss_stats')) || { today: 0, week: 0 });
 
-  // Real-Time Canvas Tree Growth Scaling Formula
-  const totalSessionSeconds = (isBreak ? customBreak : customWork) * 60;
-  const currentSecondsLeft = (minutes * 60) + seconds;
-  const focusRatio = isActive || currentSecondsLeft < totalSessionSeconds 
-    ? ((totalSessionSeconds - currentSecondsLeft) / totalSessionSeconds) 
-    : 0;
-
-function App() {
   // Lofi Audio Stream Controls
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
-  const [audioStream] = useState(new Audio('https://stream.zeno.fm/0r0xa792kwzuv')); // Continuous 24/7 Lofi Cafe Stream
+  const audioRef = useRef(null);
+  if (!audioRef.current) {
+    audioRef.current = new Audio('https://stream.zeno.fm/0r0xa792kwzuv'); // Continuous 24/7 Lofi Cafe Stream
+  }
 
   const toggleLofiPlayback = () => {
+    const audioStream = audioRef.current;
     if (isAudioPlaying) {
       audioStream.pause();
       setIsAudioPlaying(false);
     } else {
-      audioStream.play().catch(err => console.log("Audio playback user gesture block:", err));
+      audioStream.play().catch(err => console.log('Audio playback user gesture block:', err));
       setIsAudioPlaying(true);
     }
   };
@@ -66,68 +62,18 @@ function App() {
   // Clean up and pause the background audio stream if the user closes or refreshes the tab
   useEffect(() => {
     return () => {
-      audioStream.pause();
+      if (audioRef.current) audioRef.current.pause();
     };
-  }, [audioStream]);
+  }, []);
 
-  return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 flex flex-col items-center justify-center p-6 selection:bg-purple-500/30">
-      {/* App Header */}
-      <header className="mb-12 text-center">
-        <h1 className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
-          StudySprint
-        </h1>
-        <p className="text-sm text-gray-400 mt-2 tracking-wide">Your Ultimate Aesthetic Focus Dashboard</p>
-      </header>
+  // Real-Time Canvas Tree Growth Scaling Formula
+  const totalSessionSeconds = (isBreak ? customBreak : customWork) * 60;
+  const currentSecondsLeft = (minutes * 60) + seconds;
+  const focusRatio = isActive || currentSecondsLeft < totalSessionSeconds
+    ? ((totalSessionSeconds - currentSecondsLeft) / totalSessionSeconds)
+    : 0;
 
-      {/* Main Workspace Layout Grid */}
-      <main className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-        
-        {/* LEFT COLUMN: Lofi Station Widget */}
-        <section className="bg-gray-800/60 backdrop-blur-md border border-gray-700 p-6 rounded-2xl shadow-xl flex flex-col items-center justify-between text-center min-h-[240px] transition-all duration-300 hover:border-purple-500/40">
-          <h3 className="text-xs font-bold tracking-widest text-purple-400 uppercase flex items-center gap-2">
-            🎵 LOFI CAFE STATION
-          </h3>
-          
-          <div className="my-2">
-            <p className="text-xl font-semibold text-gray-100">
-              {isAudioPlaying ? 'Streaming Live Vibes' : 'Station Paused'}
-            </p>
-            <p className="text-xs text-gray-400 mt-1.5 font-medium tracking-wide">24/7 Focus Beats</p>
-          </div>
-
-          <button
-            onClick={toggleLofiPlayback}
-            className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg ${
-              isAudioPlaying 
-                ? 'bg-purple-600 hover:bg-purple-700 text-white shadow-purple-900/40 animate-pulse' 
-                : 'bg-gray-700 hover:bg-gray-600 text-gray-200'
-            }`}
-          >
-            {isAudioPlaying ? (
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25v13.5m-7.5-13.5v13.5" />
-              </svg>
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6 ml-1">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" />
-              </svg>
-            )}
-          </button>
-        </section>
-
-        {/* RIGHT COLUMN: Focus Placeholder / Timer Space */}
-        <section className="bg-gray-800/40 border border-gray-700/60 p-6 rounded-2xl min-h-[240px] flex flex-col justify-center items-center text-center">
-          <span className="text-gray-500 text-sm">Your timers and tasks will fit perfectly over here.</span>
-        </section>
-
-      </main>
-    </div>
-  );
-}
-
-export default App;
-  // Firebase Base Synchronization Engine (Restored!)
+  // Firebase Sync Engine
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -158,16 +104,18 @@ export default App;
         streak: Number(currentStreak),
         lastActive: new Date().toISOString()
       }, { merge: true });
-    } catch (e) { console.error("Sync Error:", e); }
+    } catch (e) { console.error('Sync Error:', e); }
   };
 
-  useEffect(() => { 
-    localStorage.setItem('ss_forest', JSON.stringify(forest)); 
+  useEffect(() => {
+    localStorage.setItem('ss_forest', JSON.stringify(forest));
     if (user) syncUserToFirestore(user, forest.length * customWork + stats.today, streak);
   }, [forest]);
 
   useEffect(() => { localStorage.setItem('ss_todos', JSON.stringify(todos)); }, [todos]);
   useEffect(() => { localStorage.setItem('ss_notes', notes); }, [notes]);
+  useEffect(() => { localStorage.setItem('ss_streak', String(streak)); }, [streak]);
+  useEffect(() => { localStorage.setItem('ss_stats', JSON.stringify(stats)); }, [stats]);
 
   const handleLogin = async () => {
     try { await signInWithPopup(auth, googleProvider); } catch (e) { console.error(e); }
@@ -177,7 +125,7 @@ export default App;
     try { await signOut(auth); setActiveTab('timer'); } catch (e) { console.error(e); }
   };
 
-  // Clock Countdown Loops
+  // Clock Countdown Loop
   useEffect(() => {
     let interval = null;
     if (isActive) {
@@ -194,7 +142,9 @@ export default App;
           }
         }
       }, 1000);
-    } else { clearInterval(interval); }
+    } else {
+      clearInterval(interval);
+    }
     return () => clearInterval(interval);
   }, [isActive, minutes, seconds]);
 
@@ -256,7 +206,6 @@ export default App;
     );
   }
 
-  // 🔐 Full Restored Google Gateway Wall Component 
   if (!user) {
     return (
       <div className={`min-h-screen flex flex-col justify-between transition-colors duration-500 ${darkMode ? 'bg-[#223030] text-[#EFEFE9]' : 'bg-[#EFEFE9] text-[#223030]'}`}>
@@ -273,13 +222,13 @@ export default App;
         <main className="max-w-4xl mx-auto w-full px-6 py-12 grid grid-cols-1 md:grid-cols-2 gap-12 items-center my-auto">
           <div className="space-y-6 text-center md:text-left">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border border-[#959D90]/20 bg-[#523D35]/20 text-[#BBA58F]">
-              <Sparkles className="w-3.5 h-3.5" /> <span>Workspace Workspace Operational</span>
+              <Sparkles className="w-3.5 h-3.5" /> <span>Workspace Operational</span>
             </div>
             <h1 className="text-4xl md:text-5xl font-serif font-normal tracking-tight leading-tight">
               Slow down. <br /> Grow your <span className="italic font-semibold text-[#BBA58F]">virtual sanctuary</span>.
             </h1>
             <p className="text-sm leading-relaxed max-w-sm text-[#BBA58F]">
-              An intentional cozy ecosystem syncing micro-tasks, collective leaderboards, and personalized soundscapes.
+              An intentional cozy ecosystem syncing micro-tasks, collective leaderboards, and a 24/7 lofi soundscape.
             </p>
           </div>
 
@@ -289,8 +238,8 @@ export default App;
             </div>
             <h2 className="text-xl font-serif font-bold text-center mb-1">Welcome Home</h2>
             <p className="text-xs text-center text-[#BBA58F] mb-8">Securely sign in with Google to access your global scoreboard lounge.</p>
-            <button 
-              onClick={handleLogin} 
+            <button
+              onClick={handleLogin}
               className="w-full flex items-center justify-center gap-3 px-5 py-3.5 text-sm font-semibold rounded-2xl bg-[#EFEFE9] text-[#223030] hover:bg-[#E8D9CD] transition-colors shadow-md"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24">
@@ -307,7 +256,7 @@ export default App;
 
   return (
     <div className={`min-h-screen font-sans transition-colors duration-500 ${darkMode ? 'bg-[#223030] text-[#EFEFE9]' : 'bg-[#EFEFE9] text-[#223030]'}`}>
-      
+
       <header className={`border-b backdrop-blur-md sticky top-0 z-50 ${darkMode ? 'border-[#959D90]/10 bg-[#223030]/90' : 'border-[#BBA58F]/20 bg-[#EFEFE9]/90'}`}>
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -337,12 +286,12 @@ export default App;
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
+
         <nav className="lg:col-span-3 flex lg:flex-col gap-1.5 overflow-x-auto pb-2 lg:pb-0">
           {[
             { id: 'timer', label: 'Focus Hearth', icon: Timer },
             { id: 'forest', label: 'My Sanctuary', icon: Leaf, count: forest.length },
-            { id: 'todos', label: 'Intentions', icon: CheckSquare, count: todos.filter(t=>!t.completed).length },
+            { id: 'todos', label: 'Intentions', icon: CheckSquare, count: todos.filter(t => !t.completed).length },
             { id: 'notes', label: 'Notebook', icon: FileText },
             { id: 'leaderboard', label: 'The Lounge', icon: Award },
           ].map(tab => {
@@ -364,11 +313,11 @@ export default App;
         </nav>
 
         <section className="lg:col-span-9 space-y-6">
-          
+
           {activeTab === 'timer' && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Fullscreen Core Screen with Live Tree Ecosystem */}
-              <div 
+              <div
                 ref={fullscreenRef}
                 className={`md:col-span-2 p-10 rounded-3xl flex flex-col items-center justify-center relative overflow-hidden transition-all border ${
                   isFullscreen ? 'fixed inset-0 z-50 w-screen h-screen rounded-none bg-[#223030] text-[#EFEFE9]' : 'bg-[#523D35]/10 border-[#959D90]/10'
@@ -381,7 +330,7 @@ export default App;
                 {/* Live Growing Micro-Tree Component */}
                 <div className="w-40 h-44 flex flex-col items-center justify-end relative mb-4">
                   <div className="w-24 h-3 bg-[#523D35] rounded-full opacity-60 z-10"></div>
-                  <div 
+                  <div
                     style={{ height: `${Math.max(12, focusRatio * 110)}px`, backgroundColor: '#523D35', width: `${Math.max(6, 14 - (focusRatio * 6))}px` }}
                     className="rounded-t-md transition-all duration-1000 relative flex justify-center"
                   >
@@ -412,34 +361,22 @@ export default App;
                 </div>
               </div>
 
-              {/* Sidebar Settings Panel & Real User Spotify Integration Remote */}
+              {/* Sidebar: Lofi Player + Settings */}
               <div className="space-y-6">
-                <div className="p-5 rounded-3xl border bg-[#523D35]/10 border-[#959D90]/10">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-serif font-bold text-xs flex items-center gap-1.5 text-[#BBA58F] uppercase tracking-wide">🎵 Spotify Remote</h3>
-                    {spotifyUser && <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-mono">Linked</span>}
-                  </div>
-                  {!spotifyToken ? (
-                    <button onClick={handleSpotifyLogin} className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-xs transition-colors">Connect Personal Spotify</button>
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-3 bg-[#223030]/40 p-2.5 rounded-xl border border-[#959D90]/10">
-                        <div className="w-12 h-12 bg-[#523D35] rounded-lg flex-shrink-0 overflow-hidden flex items-center justify-center">
-                          {playbackState.albumArt ? <img src={playbackState.albumArt} alt="" className="w-full h-full object-cover" /> : <Music className="w-5 h-5 text-[#BBA58F]" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-[#EFEFE9] truncate">{playbackState.trackName}</p>
-                          <p className="text-[10px] text-[#BBA58F] truncate">{playbackState.artistName}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-center gap-4 text-[#EFEFE9]">
-                        <button onClick={() => triggerSpotifyAction('previous', 'POST')} className="p-2 hover:text-[#BBA58F]"><SkipBack className="w-4 h-4" /></button>
-                        <button onClick={() => triggerSpotifyAction(playbackState.isPlaying ? 'pause' : 'play', 'PUT')} className="p-3 bg-[#523D35] rounded-full text-white">{playbackState.isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}</button>
-                        <button onClick={() => triggerSpotifyAction('next', 'POST')} className="p-2 hover:text-[#BBA58F]"><SkipForward className="w-4 h-4" /></button>
-                      </div>
-                      <div className="text-center"><button onClick={handleSpotifyLogout} className="text-[10px] text-[#BBA58F] hover:underline">Disconnect Player Account</button></div>
-                    </div>
-                  )}
+                <div className="p-5 rounded-3xl border bg-[#523D35]/10 border-[#959D90]/10 flex flex-col items-center text-center">
+                  <h3 className="text-xs font-bold tracking-widest text-[#BBA58F] uppercase flex items-center gap-2 mb-2">
+                    <Music className="w-3.5 h-3.5" /> Lofi Cafe Station
+                  </h3>
+                  <p className="text-sm font-serif text-[#EFEFE9]">{isAudioPlaying ? 'Streaming Live Vibes' : 'Station Paused'}</p>
+                  <p className="text-[10px] text-[#BBA58F] mt-1 mb-4 font-mono uppercase tracking-wide">24/7 Focus Beats</p>
+                  <button
+                    onClick={toggleLofiPlayback}
+                    className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg ${
+                      isAudioPlaying ? 'bg-[#959D90] text-white animate-pulse' : 'bg-[#223030]/50 text-[#BBA58F] hover:bg-[#223030]/70'
+                    }`}
+                  >
+                    {isAudioPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
+                  </button>
                 </div>
 
                 <div className="p-5 rounded-3xl border bg-[#523D35]/10 border-[#959D90]/10">
@@ -448,6 +385,10 @@ export default App;
                     <div>
                       <label className="text-[10px] text-[#BBA58F] font-semibold block mb-0.5">Focus Duration</label>
                       <input type="number" value={customWork} onChange={e => setCustomWork(Math.max(1, Number(e.target.value)))} className="w-full px-3 py-2 rounded-xl text-xs bg-[#223030]/50 border border-[#959D90]/20 text-[#EFEFE9] outline-none" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-[#BBA58F] font-semibold block mb-0.5">Break Duration</label>
+                      <input type="number" value={customBreak} onChange={e => setCustomBreak(Math.max(1, Number(e.target.value)))} className="w-full px-3 py-2 rounded-xl text-xs bg-[#223030]/50 border border-[#959D90]/20 text-[#EFEFE9] outline-none" />
                     </div>
                     <button type="submit" className="w-full py-2 rounded-xl bg-[#523D35] text-white font-serif text-xs">Update Configurations</button>
                   </form>
@@ -478,11 +419,10 @@ export default App;
             </div>
           )}
 
-          {/* 📝 Fully Restored Tasks / Intentions Tab Panel Content */}
           {activeTab === 'todos' && (
             <div className="p-6 rounded-3xl border bg-[#523D35]/10 border-[#959D90]/10 space-y-6">
               <h2 className="text-xl font-serif font-bold flex items-center gap-2"><CheckSquare className="w-5 h-5 text-[#959D90]" /> Daily Intentions</h2>
-              <form onSubmit={(e) => { e.preventDefault(); const txt = e.target.elements.todoText.value; if(txt.trim()){setTodos([...todos, {id: Date.now(), text: txt, completed: false}]); e.target.reset();} }} className="flex gap-2">
+              <form onSubmit={(e) => { e.preventDefault(); const txt = e.target.elements.todoText.value; if (txt.trim()) { setTodos([...todos, { id: Date.now(), text: txt, completed: false }]); e.target.reset(); } }} className="flex gap-2">
                 <input name="todoText" type="text" placeholder="What is your focus target right now?" className="flex-1 px-4 py-3 rounded-xl text-sm bg-[#223030] border border-[#959D90]/20 text-[#EFEFE9] outline-none" />
                 <button type="submit" className="px-5 bg-[#523D35] rounded-xl text-white font-serif text-sm">Add Target</button>
               </form>
@@ -490,7 +430,7 @@ export default App;
                 {todos.map(todo => (
                   <div key={todo.id} className="flex items-center justify-between p-3.5 rounded-xl bg-[#223030]/40 border border-[#959D90]/10">
                     <div className="flex items-center gap-3">
-                      <input type="checkbox" checked={todo.completed} onChange={() => setTodos(todos.map(t => t.id === todo.id ? {...t, completed: !t.completed} : t))} className="w-4 h-4 rounded border-[#BBA58F] accent-[#959D90]" />
+                      <input type="checkbox" checked={todo.completed} onChange={() => setTodos(todos.map(t => t.id === todo.id ? { ...t, completed: !t.completed } : t))} className="w-4 h-4 rounded border-[#BBA58F] accent-[#959D90]" />
                       <span className={`text-sm ${todo.completed ? 'line-through text-[#BBA58F]' : 'text-[#EFEFE9]'}`}>{todo.text}</span>
                     </div>
                     <button onClick={() => setTodos(todos.filter(t => t.id !== todo.id))} className="text-[#BBA58F] hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
@@ -507,7 +447,6 @@ export default App;
             </div>
           )}
 
-          {/* 🏆 Fully Restored Firebase Live Lounge Scoreboard Panel Content */}
           {activeTab === 'leaderboard' && (
             <div className="p-6 rounded-3xl border bg-[#523D35]/10 border-[#959D90]/10 space-y-4">
               <div>
