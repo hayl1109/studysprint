@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/callback",
+      "destination": "/api/callback.js"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
