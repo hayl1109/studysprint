@@ -131,10 +131,10 @@ const handleSpotifyLogout = () => {
     return () => clearInterval(interval);
   }, [spotifyToken]);
 
-  const triggerSpotifyAction = async (endpoint, method = 'PUT') => {
+const triggerSpotifyAction = async (endpoint, method = 'PUT') => {
     if (!spotifyToken) return;
     try {
-      await fetch(`https://api.spotify.com/v1/me/player/${endpoint}`, {
+      await fetch(`https://api.spotify.com/v1/me/player/$${endpoint}`, {
         method: method,
         headers: { Authorization: `Bearer ${spotifyToken}` }
       });
