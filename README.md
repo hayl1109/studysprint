@@ -1,4 +1,4 @@
-# StudySprint
+# StudySprint by Hayl
 
 A Pomodoro timer where every completed focus session grows a tree in your own forest.
 
