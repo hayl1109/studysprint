@@ -54,6 +54,8 @@ Drop your Firebase config into `src/firebase.js`, then:
 ```bash
 npm start
 ```
+## AI Usage
+-**Claude** used to debug and fix structural issues in the React app (duplicate component declarations, broken JSX, the leaderboard scoring logic), clean up and restyle the UI)
 
 ## What's not finished
 
