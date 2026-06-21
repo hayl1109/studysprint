@@ -1,6 +1,8 @@
-# StudySprint by Hayl
+# StudySprint
 
 A Pomodoro timer where every completed focus session grows a tree in your own forest.
+
+Built for **Horizon** (Hack Club).
 
 Sign in, set a focus length, and start a session. When it ends, a tree gets added to your forest and your streak goes up. Alongside the timer there's a task list, a notes page, and a leaderboard if you want to compare totals with other people using the app.
 
@@ -23,7 +25,7 @@ Sign in, set a focus length, and start a session. When it ends, a tree gets adde
 - `canvas-confetti` for session-complete celebration
 - `lucide-react` for icons
 
-## Getting started
+## Running it locally
 
 ```bash
 git clone https://github.com/hayl1109/studysprint.git
@@ -31,15 +33,32 @@ cd studysprint
 npm install
 ```
 
-You'll need a Firebase project with:
+You'll need a free [Firebase](https://firebase.google.com) project with:
 - Authentication → Google sign-in enabled
-- Firestore → a `users` collection, with rules allowing authenticated users to read the collection and write only their own document
+- Firestore → a `users` collection, with rules that let signed-in users read the collection and write only their own document:
 
-Add your Firebase config to `src/firebase.js`, then run:
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
+```
+
+Drop your Firebase config into `src/firebase.js`, then:
 
 ```bash
 npm start
 ```
+
+## What's not finished
+
+- Forests aren't shareable yet — that's a planned next step, not a current feature
+- The leaderboard needs the Firestore rules above to work; without them it'll show a permissions error
 
 ## Notes on data
 
