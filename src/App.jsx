@@ -78,7 +78,7 @@ export default function App() {
   }, []);
 
   const handleSpotifyLogin = () => {
-    window.location.href = `${SPOTIFY_AUTH_ENDPOINT}?client_id=${SPOTIFY_CLIENT_ID}&redirect_uri=${encodeURIComponent(SPOTIFY_REDIRECT_URI)}&scope=${encodeURIComponent(SCOPES.join(' '))}&response_type=token&show_dialog=true`;
+    window.location.href = `${SPOTIFY_AUTH_ENDPOINT}?client_id=${SPOTIFY_CLIENT_ID}&redirect_uri=${encodeURIComponent(SPOTIFY_REDIRECT_URI)}&scope=${encodeURIComponent(SCOPES.join(' '))}&response_type=code&show_dialog=true`;
   };
 
   const handleSpotifyLogout = () => {
