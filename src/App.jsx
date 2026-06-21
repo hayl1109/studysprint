@@ -59,20 +59,30 @@ export default function App() {
   });
 
   const SPOTIFY_CLIENT_ID = '57e4d65ff990439aaffe8faee4eaf8c1'; // Replace this when deploying!
-  const SPOTIFY_REDIRECT_URI = window.location.origin; 
+  const SPOTIFY_REDIRECT_URI = 'https://studysprint-orpin.vercel.app/api/callback'; 
   const SPOTIFY_AUTH_ENDPOINT = 'https://accounts.spotify.com/authorize';
   const SCOPES = ['user-read-playback-state', 'user-modify-playback-state', 'user-read-currently-playing'];
 
-  // Spotify OAuth Token Pipeline Detectors
+ // Spotify OAuth Token Pipeline Detectors
   useEffect(() => {
     const hash = window.location.hash;
     let token = window.localStorage.getItem('spotify_token');
 
     if (!token && hash) {
-      token = hash.substring(1).split('&').find(elem => elem.startsWith('access_token')).split('=')[1];
-      window.location.hash = '';
-      window.localStorage.setItem('spotify_token', token);
+      const params = new URLSearchParams(hash.substring(1)); // clean out leading #
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+
+      if (accessToken) {
+        token = accessToken;
+        window.localStorage.setItem('spotify_token', accessToken);
+        if (refreshToken) {
+          window.localStorage.setItem('spotify_refresh_token', refreshToken);
+        }
+        window.location.hash = '';
+      }
     }
+    
     setSpotifyToken(token);
     if (token) fetchSpotifyUserData(token);
   }, []);
@@ -81,10 +91,11 @@ export default function App() {
     window.location.href = `${SPOTIFY_AUTH_ENDPOINT}?client_id=${SPOTIFY_CLIENT_ID}&redirect_uri=${encodeURIComponent(SPOTIFY_REDIRECT_URI)}&scope=${encodeURIComponent(SCOPES.join(' '))}&response_type=code&show_dialog=true`;
   };
 
-  const handleSpotifyLogout = () => {
+const handleSpotifyLogout = () => {
     setSpotifyToken(null);
     setSpotifyUser(null);
     window.localStorage.removeItem('spotify_token');
+    window.localStorage.removeItem('spotify_refresh_token');
   };
 
   const fetchSpotifyUserData = async (token) => {
