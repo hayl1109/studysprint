@@ -468,10 +468,10 @@ export default function App() {
               </div>
               <div className="divide-y divide-[#BBA58F]/10">
                 {leaderboardError && (
-                  <p className="text-xs text-red-400 py-3">Couldn't load this: {leaderboardError}</p>
+                  <p className="text-xs text-red-400 py-3"></p>
                 )}
                 {!leaderboardError && globalLeaderboard.length === 0 && (
-                  <p className="text-xs text-[#BBA58F] py-3">Nobody's logged a session yet.</p>
+                  <p className="text-xs text-[#BBA58F] py-3"></p>
                 )}
                 {globalLeaderboard.map((leader, idx) => {
                   const isCurrentUser = leader.id === user?.uid;
