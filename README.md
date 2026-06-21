@@ -1,5 +1,5 @@
 
-# StudySprint
+# StudySprint by Hayl
 
 StudySprint is a simple study productivity web app built to help students stay focused while studying.
 
