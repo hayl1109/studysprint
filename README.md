@@ -4,6 +4,8 @@ A Pomodoro timer where every completed focus session grows a tree in your own fo
 
 **DEMO WEBSITE** [StudySprint](https://studysprint-orpin.vercel.app/)
 
+**VIDEO** https://canva.link/studysprint
+
 Built for **Horizon** (Hack Club).
 
 Sign in, set a focus length, and start a session. When it ends, a tree gets added to your forest and your streak goes up. Alongside the timer there's a task list, a notes page, and a leaderboard if you want to compare totals with other people using the app.
