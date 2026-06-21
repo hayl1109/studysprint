@@ -1,4 +1,4 @@
-````md
+
 # 📚 StudySprint
 
 StudySprint is a simple study productivity web app built to help students stay focused while studying.
