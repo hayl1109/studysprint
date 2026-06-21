@@ -63,13 +63,14 @@ export default function App() {
   const SPOTIFY_AUTH_ENDPOINT = 'https://accounts.spotify.com/authorize';
   const SCOPES = ['user-read-playback-state', 'user-modify-playback-state', 'user-read-currently-playing'];
 
- // Spotify OAuth Token Pipeline Detectors
+// Spotify OAuth Token Pipeline Detectors
   useEffect(() => {
     const hash = window.location.hash;
     let token = window.localStorage.getItem('spotify_token');
 
+    // If there's no token in storage, but we just got redirected back with one in the URL hash
     if (!token && hash) {
-      const params = new URLSearchParams(hash.substring(1)); // clean out leading #
+      const params = new URLSearchParams(hash.substring(1)); // strip the leading '#'
       const accessToken = params.get('access_token');
       const refreshToken = params.get('refresh_token');
 
@@ -79,12 +80,15 @@ export default function App() {
         if (refreshToken) {
           window.localStorage.setItem('spotify_refresh_token', refreshToken);
         }
+        // Clean up the URL bar so it looks nice
         window.location.hash = '';
       }
     }
-    
-    setSpotifyToken(token);
-    if (token) fetchSpotifyUserData(token);
+
+    if (token) {
+      setSpotifyToken(token);
+      fetchSpotifyUserData(token);
+    }
   }, []);
 
   const handleSpotifyLogin = () => {
