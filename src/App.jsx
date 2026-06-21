@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Timer, Leaf, CheckSquare, BarChart2, Flame, Moon, Sun, Plus, 
-  Trash2, Award, FileText, Settings, Play, Pause, RefreshCw, LogIn, LogOut, Sparkles
+  Timer, Leaf, CheckSquare, Flame, Moon, Sun, Plus, 
+  Trash2, Award, FileText, Settings, Play, Pause, RefreshCw, LogOut, Sparkles, Maximize2, Minimize2,
+  Music, SkipForward, SkipBack
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
@@ -9,13 +10,18 @@ import { doc, setDoc, collection, query, orderBy, onSnapshot } from 'firebase/fi
 import { auth, googleProvider, db } from './firebase';
 
 export default function App() {
+  // Authentication & Leaderboard States
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [globalLeaderboard, setGlobalLeaderboard] = useState([]);
 
+  // Theme & Layout States
   const [darkMode, setDarkMode] = useState(true);
   const [activeTab, setActiveTab] = useState('timer');
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const fullscreenRef = useRef(null);
   
+  // Custom Timer States
   const [customWork, setCustomWork] = useState(25);
   const [customBreak, setCustomBreak] = useState(5);
   const [minutes, setMinutes] = useState(25);
@@ -23,16 +29,104 @@ export default function App() {
   const [isActive, setIsActive] = useState(false);
   const [isBreak, setIsBreak] = useState(false);
 
+  // Focus Category Streams
   const [subjects, setSubjects] = useState(['Coding', 'Math', 'Reading', 'Design']);
   const [selectedSubject, setSelectedSubject] = useState('Coding');
   const [newSubject, setNewSubject] = useState('');
 
+  // Personal Progress & Storage Hook Metrics
   const [forest, setForest] = useState(() => JSON.parse(localStorage.getItem('ss_forest')) || []);
   const [todos, setTodos] = useState(() => JSON.parse(localStorage.getItem('ss_todos')) || []);
   const [notes, setNotes] = useState(() => localStorage.getItem('ss_notes') || '');
   const [streak, setStreak] = useState(() => Number(localStorage.getItem('ss_streak')) || 0);
   const [stats, setStats] = useState(() => JSON.parse(localStorage.getItem('ss_stats')) || { today: 0, week: 0 });
 
+  // Real-Time Canvas Tree Growth Scaling Formula
+  const totalSessionSeconds = (isBreak ? customBreak : customWork) * 60;
+  const currentSecondsLeft = (minutes * 60) + seconds;
+  const focusRatio = isActive || currentSecondsLeft < totalSessionSeconds 
+    ? ((totalSessionSeconds - currentSecondsLeft) / totalSessionSeconds) 
+    : 0;
+
+  // Personal Authenticated Spotify Profile Configuration
+  const [spotifyToken, setSpotifyToken] = useState(null);
+  const [spotifyUser, setSpotifyUser] = useState(null);
+  const [playbackState, setPlaybackState] = useState({
+    trackName: 'No Track Playing',
+    artistName: 'Link Spotify Account',
+    albumArt: '',
+    isPlaying: false
+  });
+
+  const SPOTIFY_CLIENT_ID = 'YOUR_SPOTIFY_CLIENT_ID'; // Replace this when deploying!
+  const SPOTIFY_REDIRECT_URI = window.location.origin; 
+  const SPOTIFY_AUTH_ENDPOINT = 'https://accounts.spotify.com/authorize';
+  const SCOPES = ['user-read-playback-state', 'user-modify-playback-state', 'user-read-currently-playing'];
+
+  // Spotify OAuth Token Pipeline Detectors
+  useEffect(() => {
+    const hash = window.location.hash;
+    let token = window.localStorage.getItem('spotify_token');
+
+    if (!token && hash) {
+      token = hash.substring(1).split('&').find(elem => elem.startsWith('access_token')).split('=')[1];
+      window.location.hash = '';
+      window.localStorage.setItem('spotify_token', token);
+    }
+    setSpotifyToken(token);
+    if (token) fetchSpotifyUserData(token);
+  }, []);
+
+  const handleSpotifyLogin = () => {
+    window.location.href = `${SPOTIFY_AUTH_ENDPOINT}?client_id=${SPOTIFY_CLIENT_ID}&redirect_uri=${encodeURIComponent(SPOTIFY_REDIRECT_URI)}&scope=${encodeURIComponent(SCOPES.join(' '))}&response_type=token&show_dialog=true`;
+  };
+
+  const handleSpotifyLogout = () => {
+    setSpotifyToken(null);
+    setSpotifyUser(null);
+    window.localStorage.removeItem('spotify_token');
+  };
+
+  const fetchSpotifyUserData = async (token) => {
+    try {
+      const res = await fetch('https://api.spotify.com/v1/me', { headers: { Authorization: `Bearer ${token}` } });
+      if (res.status === 401) return handleSpotifyLogout();
+      const data = await res.json();
+      setSpotifyUser(data);
+    } catch (err) { console.error(err); }
+  };
+
+  // Poll current live track playback device state data every 4 seconds
+  useEffect(() => {
+    if (!spotifyToken) return;
+    const interval = setInterval(() => {
+      fetch('https://api.spotify.com/v1/me/player', { headers: { Authorization: `Bearer ${spotifyToken}` } })
+      .then(res => res.status === 204 ? null : res.json())
+      .then(data => {
+        if (!data || !data.item) return;
+        setPlaybackState({
+          trackName: data.item.name,
+          artistName: data.item.artists.map(a => a.name).join(', '),
+          albumArt: data.item.album.images[0]?.url || '',
+          isPlaying: data.is_playing
+        });
+      })
+      .catch(err => console.error(err));
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [spotifyToken]);
+
+  const triggerSpotifyAction = async (endpoint, method = 'PUT') => {
+    if (!spotifyToken) return;
+    try {
+      await fetch(`https://api.spotify.com/v1/me/player/${endpoint}`, {
+        method: method,
+        headers: { Authorization: `Bearer ${spotifyToken}` }
+      });
+    } catch (err) { console.error(err); }
+  };
+
+  // Firebase Base Synchronization Engine (Restored!)
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -47,14 +141,9 @@ export default function App() {
   useEffect(() => {
     const leaderboardQuery = query(collection(db, 'users'), orderBy('score', 'desc'));
     const unsubscribeLeaderboard = onSnapshot(leaderboardQuery, (snapshot) => {
-      const usersList = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      const usersList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setGlobalLeaderboard(usersList);
-    }, (error) => {
-      console.error("Firestore Leaderboard error:", error);
-    });
+    }, (error) => console.error(error));
     return () => unsubscribeLeaderboard();
   }, []);
 
@@ -68,9 +157,7 @@ export default function App() {
         streak: Number(currentStreak),
         lastActive: new Date().toISOString()
       }, { merge: true });
-    } catch (e) {
-      console.error("Error writing document to Firestore: ", e);
-    }
+    } catch (e) { console.error("Sync Error:", e); }
   };
 
   useEffect(() => { 
@@ -80,34 +167,16 @@ export default function App() {
 
   useEffect(() => { localStorage.setItem('ss_todos', JSON.stringify(todos)); }, [todos]);
   useEffect(() => { localStorage.setItem('ss_notes', notes); }, [notes]);
-  
-  useEffect(() => { 
-    localStorage.setItem('ss_streak', streak.toString()); 
-    if (user) syncUserToFirestore(user, forest.length * customWork + stats.today, streak);
-  }, [streak]);
-
-  useEffect(() => { 
-    localStorage.setItem('ss_stats', JSON.stringify(stats)); 
-    if (user) syncUserToFirestore(user, forest.length * customWork + stats.today, streak);
-  }, [stats]);
 
   const handleLogin = async () => {
-    try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (error) {
-      console.error("Authentication Error Details:", error.message);
-    }
+    try { await signInWithPopup(auth, googleProvider); } catch (e) { console.error(e); }
   };
 
   const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      setActiveTab('timer');
-    } catch (error) {
-      console.error("Signout Error Details:", error.message);
-    }
+    try { await signOut(auth); setActiveTab('timer'); } catch (e) { console.error(e); }
   };
 
+  // Clock Countdown Loops
   useEffect(() => {
     let interval = null;
     if (isActive) {
@@ -124,14 +193,11 @@ export default function App() {
           }
         }
       }, 1000);
-    } else {
-      clearInterval(interval);
-    }
+    } else { clearInterval(interval); }
     return () => clearInterval(interval);
   }, [isActive, minutes, seconds]);
 
   const toggleTimer = () => setIsActive(!isActive);
-  
   const resetTimer = () => {
     setIsActive(false);
     setMinutes(isBreak ? customBreak : customWork);
@@ -144,6 +210,16 @@ export default function App() {
     setSeconds(0);
     setIsActive(false);
     setIsBreak(false);
+  };
+
+  const toggleFullscreen = () => {
+    if (!isFullscreen) {
+      if (fullscreenRef.current.requestFullscreen) fullscreenRef.current.requestFullscreen();
+      setIsFullscreen(true);
+    } else {
+      if (document.exitFullscreen) document.exitFullscreen();
+      setIsFullscreen(false);
+    }
   };
 
   const triggerCompletion = () => {
@@ -161,19 +237,6 @@ export default function App() {
     }
   };
 
-  const addTodo = (text) => {
-    if (!text.trim()) return;
-    setTodos([...todos, { id: Date.now(), text, completed: false }]);
-  };
-
-  const toggleTodo = (id) => {
-    setTodos(todos.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
-  };
-
-  const deleteTodo = (id) => {
-    setTodos(todos.filter(t => t.id !== id));
-  };
-
   const handleAddSubject = (e) => {
     e.preventDefault();
     if (newSubject.trim() && !subjects.includes(newSubject.trim())) {
@@ -185,120 +248,102 @@ export default function App() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-[#0f172a] flex flex-col items-center justify-center text-slate-100">
-        <div className="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mb-4"></div>
-        <p className="text-xs font-bold tracking-widest uppercase text-slate-400">Loading StudySprint Engine...</p>
+      <div className="min-h-screen bg-[#223030] flex flex-col items-center justify-center text-[#EFEFE9]">
+        <div className="w-12 h-12 border-4 border-[#959D90]/20 border-t-[#BBA58F] rounded-full animate-spin mb-4"></div>
+        <p className="text-xs font-bold tracking-widest uppercase text-[#BBA58F]">Synchronizing Cozy Lounge...</p>
       </div>
     );
   }
 
+  // 🔐 Full Restored Google Gateway Wall Component 
   if (!user) {
     return (
-      <div className={`min-h-screen flex flex-col justify-between transition-colors duration-500 ${darkMode ? 'bg-[#0f172a] text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
+      <div className={`min-h-screen flex flex-col justify-between transition-colors duration-500 ${darkMode ? 'bg-[#223030] text-[#EFEFE9]' : 'bg-[#EFEFE9] text-[#223030]'}`}>
         <div className="max-w-7xl mx-auto w-full px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-emerald-500 rounded-lg text-white">
-              <Leaf className="w-5 h-5" />
-            </div>
-            <span className="font-black text-sm tracking-wider">STUDYSPRINT</span>
+            <div className="p-2 bg-[#959D90] rounded-xl text-white shadow-sm"><Leaf className="w-5 h-5" /></div>
+            <span className="font-serif font-bold text-lg tracking-wide">StudySprint</span>
           </div>
-          <button onClick={() => setDarkMode(!darkMode)} className={`p-2 rounded-xl border transition-all ${darkMode ? 'border-slate-800 bg-slate-900 hover:bg-slate-800' : 'border-slate-200 bg-white hover:bg-slate-100'}`}>
-            {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
+          <button onClick={() => setDarkMode(!darkMode)} className="p-2 rounded-xl border border-[#959D90]/20">
+            {darkMode ? <Sun className="w-4 h-4 text-[#BBA58F]" /> : <Moon className="w-4 h-4 text-[#523D35]" />}
           </button>
         </div>
 
-        <main className="max-w-4xl mx-auto px-6 py-12 grid grid-cols-1 md:grid-cols-2 gap-12 items-center my-auto">
+        <main className="max-w-4xl mx-auto w-full px-6 py-12 grid grid-cols-1 md:grid-cols-2 gap-12 items-center my-auto">
           <div className="space-y-6 text-center md:text-left">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <Sparkles className="w-3.5 h-3.5 animate-pulse text-amber-400" />
-              <span>Global Firestore Synced</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border border-[#959D90]/20 bg-[#523D35]/20 text-[#BBA58F]">
+              <Sparkles className="w-3.5 h-3.5" /> <span>Workspace Workspace Operational</span>
             </div>
-            <h1 className="text-4xl md:text-5xl font-black tracking-tight leading-tight">
-              Focus harder. <br />
-              Grow your <span className="bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">virtual forest</span>.
+            <h1 className="text-4xl md:text-5xl font-serif font-normal tracking-tight leading-tight">
+              Slow down. <br /> Grow your <span className="italic font-semibold text-[#BBA58F]">virtual sanctuary</span>.
             </h1>
-            <p className="text-sm leading-relaxed text-slate-400 max-w-sm mx-auto md:mx-0">
-              An elegant, gamified focus manager using the Pomodoro technique to build healthy habits, visual metrics, and task backlogs.
+            <p className="text-sm leading-relaxed max-w-sm text-[#BBA58F]">
+              An intentional cozy ecosystem syncing micro-tasks, collective leaderboards, and personalized soundscapes.
             </p>
           </div>
 
-          <div className={`p-8 rounded-3xl shadow-2xl flex flex-col text-center border transition-all ${darkMode ? 'bg-slate-900/40 border-slate-800/80' : 'bg-white border-slate-100'}`}>
-            <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-2xl w-fit mx-auto mb-4 border border-emerald-500/20">
+          <div className={`p-8 rounded-3xl shadow-xl border ${darkMode ? 'bg-[#523D35]/10 border-[#959D90]/20' : 'bg-white border-[#BBA58F]/30'}`}>
+            <div className="p-3 bg-[#523D35]/30 text-[#BBA58F] border border-[#959D90]/20 rounded-2xl w-fit mx-auto mb-4">
               <Timer className="w-8 h-8" />
             </div>
-            <h2 className="text-xl font-bold mb-1">Create your Account</h2>
-            <p className="text-xs text-slate-400 mb-8">Sign in with Google to enter the synchronized global workspace.</p>
-
+            <h2 className="text-xl font-serif font-bold text-center mb-1">Welcome Home</h2>
+            <p className="text-xs text-center text-[#BBA58F] mb-8">Securely sign in with Google to access your global scoreboard lounge.</p>
             <button 
               onClick={handleLogin} 
-              className="w-full flex items-center justify-center gap-3 px-5 py-3.5 text-sm font-bold bg-white text-slate-900 rounded-xl shadow-xl hover:bg-slate-100 transition-all border border-slate-200"
+              className="w-full flex items-center justify-center gap-3 px-5 py-3.5 text-sm font-semibold rounded-2xl bg-[#EFEFE9] text-[#223030] hover:bg-[#E8D9CD] transition-colors shadow-md"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24">
-                <path fill="#EA4335" d="M12.24 10.285V14.4h6.887c-.275 1.565-1.88 4.604-6.887 4.604-4.33 0-7.866-3.577-7.866-8s3.536-8 7.866-8c2.46 0 4.105 1.025 5.047 1.926l3.227-3.227C18.29 1.157 15.54 0 12.24 0 5.58 0 0 5.37 0 12s5.58 12 12.24 12c6.96 0 11.57-4.853 11.57-11.77 0-.795-.085-1.4-.195-1.945H12.24z"/>
+                <path fill="currentColor" d="M12.24 10.285V14.4h6.887c-.275 1.565-1.88 4.604-6.887 4.604-4.33 0-7.866-3.577-7.866-8s3.536-8 7.866-8c2.46 0 4.105 1.025 5.047 1.926l3.227-3.227C18.29 1.157 15.54 0 12.24 0 5.58 0 0 5.37 0 12s5.58 12 12.24 12c6.96 0 11.57-4.853 11.57-11.77 0-.795-.085-1.4-.195-1.945H12.24z"/>
               </svg>
               <span>Continue with Google</span>
             </button>
           </div>
         </main>
-
-        <footer className="text-center py-6 text-xs text-slate-500 max-w-7xl mx-auto w-full border-t border-slate-900/40">
-          &copy; 2026 StudySprint by Hayl
-        </footer>
+        <footer className="text-center py-6 text-xs text-[#959D90]">&copy; 2026 StudySprint bu Hayl.</footer>
       </div>
     );
   }
 
   return (
-    <div className={`min-h-screen font-sans transition-colors duration-500 ${darkMode ? 'bg-[#0f172a] text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
+    <div className={`min-h-screen font-sans transition-colors duration-500 ${darkMode ? 'bg-[#223030] text-[#EFEFE9]' : 'bg-[#EFEFE9] text-[#223030]'}`}>
       
-      <header className={`border-b backdrop-blur-md sticky top-0 z-50 ${darkMode ? 'border-slate-800 bg-[#0f172a]/80' : 'border-slate-200 bg-white/80'}`}>
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+      <header className={`border-b backdrop-blur-md sticky top-0 z-50 ${darkMode ? 'border-[#959D90]/10 bg-[#223030]/90' : 'border-[#BBA58F]/20 bg-[#EFEFE9]/90'}`}>
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-emerald-500 rounded-xl text-white shadow-lg shadow-emerald-500/20">
-              <Leaf className="w-6 h-6" />
-            </div>
-            <span className="font-black text-xl tracking-wider bg-gradient-to-r from-emerald-400 to-teal-500 bg-clip-text text-transparent">STUDYSPRINT</span>
+            <div className="p-2 bg-[#959D90] rounded-xl text-white shadow-sm"><Leaf className="w-5 h-5" /></div>
+            <span className="font-serif font-bold text-xl tracking-wide">StudySprint</span>
           </div>
 
-          <div className="hidden md:flex items-center gap-6 text-sm font-medium">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20">
-              <Flame className="w-4 h-4 fill-current" />
-              <span>{streak} Day Streak</span>
+          <div className="hidden md:flex items-center gap-4 text-xs font-medium">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#959D90]/20 bg-[#523D35]/20 text-[#BBA58F]">
+              <Flame className="w-4 h-4 fill-current" /> <span>{streak} Day Habit Streak</span>
             </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <Timer className="w-4 h-4" />
-              <span>{stats.today}m Focused Today</span>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#959D90]/20 bg-[#523D35]/20 text-[#BBA58F]">
+              <Timer className="w-4 h-4" /> <span>{stats.today}m Gathered Today</span>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <button onClick={() => setDarkMode(!darkMode)} className={`p-2 rounded-xl border transition-all ${darkMode ? 'border-slate-800 bg-slate-900 hover:bg-slate-800' : 'border-slate-200 bg-white hover:bg-slate-100'}`}>
-              {darkMode ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-slate-600" />}
+            <button onClick={() => setDarkMode(!darkMode)} className="p-2 rounded-xl border border-[#959D90]/20">
+              {darkMode ? <Sun className="w-5 h-5 text-[#BBA58F]" /> : <Moon className="w-5 h-5 text-[#523D35]" />}
             </button>
-
-            <div className="flex items-center gap-3 pl-2 border-l border-slate-700">
-              {user.photoURL ? (
-                <img src={user.photoURL} alt={user.displayName} className="w-8 h-8 rounded-full border border-emerald-500 shadow-md" />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-slate-700 text-white flex items-center justify-center text-xs font-bold uppercase">{user.displayName?.charAt(0) || 'U'}</div>
-              )}
-              <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-red-400 rounded-xl transition-colors" title="Sign Out">
-                <LogOut className="w-5 h-5" />
-              </button>
+            <div className="flex items-center gap-3 pl-3 border-l border-[#959D90]/20">
+              <img src={user.photoURL} alt="" className="w-8 h-8 rounded-full border border-[#BBA58F]" />
+              <button onClick={handleLogout} className="p-2 text-[#959D90] hover:text-[#BBA58F]"><LogOut className="w-5 h-5" /></button>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <main className="max-w-7xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        <nav className="lg:col-span-3 flex lg:flex-col gap-2 overflow-x-auto pb-2 lg:pb-0">
+        <nav className="lg:col-span-3 flex lg:flex-col gap-1.5 overflow-x-auto pb-2 lg:pb-0">
           {[
-            { id: 'timer', label: 'Focus Zone', icon: Timer },
-            { id: 'forest', label: 'My Forest', icon: Leaf, count: forest.length },
-            { id: 'todos', label: 'Tasks', icon: CheckSquare, count: todos.filter(t=>!t.completed).length },
-            { id: 'notes', label: 'Scratchpad', icon: FileText },
-            { id: 'leaderboard', label: 'Leaderboard', icon: Award },
+            { id: 'timer', label: 'Focus Hearth', icon: Timer },
+            { id: 'forest', label: 'My Sanctuary', icon: Leaf, count: forest.length },
+            { id: 'todos', label: 'Intentions', icon: CheckSquare, count: todos.filter(t=>!t.completed).length },
+            { id: 'notes', label: 'Notebook', icon: FileText },
+            { id: 'leaderboard', label: 'The Lounge', icon: Award },
           ].map(tab => {
             const Icon = tab.icon;
             const isSelected = activeTab === tab.id;
@@ -306,17 +351,12 @@ export default function App() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition-all whitespace-nowrap min-w-[140px] lg:min-w-0 ${
-                  isSelected 
-                    ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/20' 
-                    : darkMode ? 'text-slate-400 hover:bg-slate-900 hover:text-white' : 'text-slate-600 hover:bg-white hover:text-slate-900'
+                className={`flex items-center gap-3 px-4 py-3 rounded-2xl font-medium text-sm transition-all whitespace-nowrap min-w-[140px] lg:min-w-0 ${
+                  isSelected ? 'bg-[#523D35] text-[#EFEFE9] shadow-md' : 'text-[#BBA58F] hover:bg-[#523D35]/20'
                 }`}
               >
-                <Icon className="w-5 h-5" />
-                <span className="flex-1 text-left">{tab.label}</span>
-                {tab.count !== undefined && (
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-500/20 text-slate-400'}`}>{tab.count}</span>
-                )}
+                <Icon className="w-4 h-4" /> <span className="flex-1 text-left font-serif">{tab.label}</span>
+                {tab.count !== undefined && <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#523D35]/10 text-[#523D35]">{tab.count}</span>}
               </button>
             );
           })}
@@ -326,121 +366,133 @@ export default function App() {
           
           {activeTab === 'timer' && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className={`md:col-span-2 p-8 rounded-3xl flex flex-col items-center justify-center relative overflow-hidden transition-all shadow-xl ${darkMode ? 'bg-slate-900/50 border border-slate-800' : 'bg-white border border-slate-100'}`}>
-                {isBreak && (
-                  <span className="absolute top-4 px-4 py-1 rounded-full text-xs font-bold bg-teal-500/10 text-teal-400 tracking-widest uppercase">Break Time</span>
-                )}
-                
-                <div className="mb-6 flex items-center gap-2">
-                  <span className="text-xs text-slate-400 uppercase tracking-wider font-bold">Targeting:</span>
-                  <select 
-                    value={selectedSubject} 
-                    onChange={(e) => setSelectedSubject(e.target.value)}
-                    className={`text-sm font-semibold rounded-lg px-2.5 py-1 border outline-none ${darkMode ? 'bg-slate-800 border-slate-700 text-emerald-400' : 'bg-slate-100 border-slate-200 text-emerald-600'}`}
+              {/* Fullscreen Core Screen with Live Tree Ecosystem */}
+              <div 
+                ref={fullscreenRef}
+                className={`md:col-span-2 p-10 rounded-3xl flex flex-col items-center justify-center relative overflow-hidden transition-all border ${
+                  isFullscreen ? 'fixed inset-0 z-50 w-screen h-screen rounded-none bg-[#223030] text-[#EFEFE9]' : 'bg-[#523D35]/10 border-[#959D90]/10'
+                }`}
+              >
+                <button onClick={toggleFullscreen} className="absolute top-6 right-6 p-2 text-[#BBA58F] hover:bg-[#523D35]/10">
+                  {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+                </button>
+
+                {/* Live Growing Micro-Tree Component */}
+                <div className="w-40 h-44 flex flex-col items-center justify-end relative mb-4">
+                  <div className="w-24 h-3 bg-[#523D35] rounded-full opacity-60 z-10"></div>
+                  <div 
+                    style={{ height: `${Math.max(12, focusRatio * 110)}px`, backgroundColor: '#523D35', width: `${Math.max(6, 14 - (focusRatio * 6))}px` }}
+                    className="rounded-t-md transition-all duration-1000 relative flex justify-center"
                   >
+                    {focusRatio > 0.4 && <div className="absolute -top-3 -left-6 w-8 h-2 bg-[#523D35] rotate-[35deg] rounded-full origin-right"><div className="w-4 h-4 rounded-full bg-[#959D90] absolute -top-2 -left-1"></div></div>}
+                    {focusRatio > 0.7 && <div className="absolute -top-6 -right-6 w-8 h-2 bg-[#523D35] -rotate-[35deg] rounded-full origin-left"><div className="w-4 h-4 rounded-full bg-[#959D90] absolute -top-2 -right-1"></div></div>}
+                    <div style={{ transform: `scale(${focusRatio * 1.6})` }} className="absolute -top-8 w-10 h-10 rounded-full bg-[#959D90] flex items-center justify-center transition-all duration-1000">🍃</div>
+                  </div>
+                  <span className="text-[10px] text-[#BBA58F] mt-2 font-mono uppercase tracking-widest">{focusRatio === 0 ? 'Dormant Seed' : focusRatio >= 1 ? 'Fully Grown' : 'Focus Sprouting...'}</span>
+                </div>
+
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="text-xs text-[#BBA58F] uppercase tracking-wider font-semibold">Focusing On:</span>
+                  <select value={selectedSubject} onChange={(e) => setSelectedSubject(e.target.value)} className="text-xs font-semibold rounded-xl px-3 py-1.5 bg-[#223030] border border-[#959D90]/20 text-[#BBA58F] outline-none">
                     {subjects.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
 
-                <h1 className="text-7xl md:text-8xl font-black tracking-tighter tabular-nums font-mono mb-8 bg-gradient-to-b from-current to-slate-500 bg-clip-text text-transparent">
+                <h1 className={`font-light tracking-tighter tabular-nums font-serif my-2 ${isFullscreen ? 'text-9xl' : 'text-7xl md:text-8xl'}`}>
                   {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
                 </h1>
 
-                <div className="flex items-center gap-4">
-                  <button onClick={toggleTimer} className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold flex items-center gap-2 hover:opacity-90 shadow-xl shadow-emerald-500/20 transition-all">
-                    {isActive ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current" />}
-                    <span>{isActive ? 'Pause' : 'Start Focus'}</span>
+                <div className="flex items-center gap-3 mt-2">
+                  <button onClick={toggleTimer} className="px-8 py-3.5 rounded-2xl bg-[#523D35] text-white font-semibold flex items-center gap-2 hover:bg-[#223030] transition-all">
+                    {isActive ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                    <span className="font-serif text-sm">{isActive ? 'Pause' : 'Begin'}</span>
                   </button>
-                  <button onClick={resetTimer} className={`p-3.5 rounded-2xl border transition-all ${darkMode ? 'border-slate-700 hover:bg-slate-800' : 'border-slate-200 hover:bg-slate-100'}`}>
-                    <RefreshCw className="w-5 h-5" />
-                  </button>
+                  <button onClick={resetTimer} className="p-3.5 rounded-2xl border border-[#959D90]/20 text-[#BBA58F]"><RefreshCw className="w-4 h-4" /></button>
                 </div>
               </div>
 
+              {/* Sidebar Settings Panel & Real User Spotify Integration Remote */}
               <div className="space-y-6">
-                <div className={`p-6 rounded-3xl shadow-md ${darkMode ? 'bg-slate-900/50 border border-slate-800' : 'bg-white border border-slate-100'}`}>
-                  <h3 className="font-bold text-base flex items-center gap-2 mb-4"><Settings className="w-4 h-4 text-emerald-400" /> Custom Engine</h3>
-                  <form onSubmit={applyCustomSettings} className="space-y-4">
-                    <div>
-                      <label className="text-xs text-slate-400 font-semibold block mb-1">Work Interval (min)</label>
-                      <input type="number" value={customWork} onChange={e => setCustomWork(Math.max(1, Number(e.target.value)))} className={`w-full px-3 py-2 rounded-xl text-sm border outline-none ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'}`} />
+                <div className="p-5 rounded-3xl border bg-[#523D35]/10 border-[#959D90]/10">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-serif font-bold text-xs flex items-center gap-1.5 text-[#BBA58F] uppercase tracking-wide">🎵 Spotify Remote</h3>
+                    {spotifyUser && <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-mono">Linked</span>}
+                  </div>
+                  {!spotifyToken ? (
+                    <button onClick={handleSpotifyLogin} className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-xs transition-colors">Connect Personal Spotify</button>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3 bg-[#223030]/40 p-2.5 rounded-xl border border-[#959D90]/10">
+                        <div className="w-12 h-12 bg-[#523D35] rounded-lg flex-shrink-0 overflow-hidden flex items-center justify-center">
+                          {playbackState.albumArt ? <img src={playbackState.albumArt} alt="" className="w-full h-full object-cover" /> : <Music className="w-5 h-5 text-[#BBA58F]" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-[#EFEFE9] truncate">{playbackState.trackName}</p>
+                          <p className="text-[10px] text-[#BBA58F] truncate">{playbackState.artistName}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-center gap-4 text-[#EFEFE9]">
+                        <button onClick={() => triggerSpotifyAction('previous', 'POST')} className="p-2 hover:text-[#BBA58F]"><SkipBack className="w-4 h-4" /></button>
+                        <button onClick={() => triggerSpotifyAction(playbackState.isPlaying ? 'pause' : 'play', 'PUT')} className="p-3 bg-[#523D35] rounded-full text-white">{playbackState.isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}</button>
+                        <button onClick={() => triggerSpotifyAction('next', 'POST')} className="p-2 hover:text-[#BBA58F]"><SkipForward className="w-4 h-4" /></button>
+                      </div>
+                      <div className="text-center"><button onClick={handleSpotifyLogout} className="text-[10px] text-[#BBA58F] hover:underline">Disconnect Player Account</button></div>
                     </div>
+                  )}
+                </div>
+
+                <div className="p-5 rounded-3xl border bg-[#523D35]/10 border-[#959D90]/10">
+                  <h3 className="font-serif font-bold text-xs flex items-center gap-2 mb-4 text-[#BBA58F] uppercase"><Settings className="w-3.5 h-3.5" /> Intervals</h3>
+                  <form onSubmit={applyCustomSettings} className="space-y-3.5">
                     <div>
-                      <label className="text-xs text-slate-400 font-semibold block mb-1">Break Interval (min)</label>
-                      <input type="number" value={customBreak} onChange={e => setCustomBreak(Math.max(1, Number(e.target.value)))} className={`w-full px-3 py-2 rounded-xl text-sm border outline-none ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'}`} />
+                      <label className="text-[10px] text-[#BBA58F] font-semibold block mb-0.5">Focus Duration</label>
+                      <input type="number" value={customWork} onChange={e => setCustomWork(Math.max(1, Number(e.target.value)))} className="w-full px-3 py-2 rounded-xl text-xs bg-[#223030]/50 border border-[#959D90]/20 text-[#EFEFE9] outline-none" />
                     </div>
-                    <button type="submit" className="w-full py-2 rounded-xl bg-slate-500/10 border border-slate-500/20 text-xs font-bold tracking-wide uppercase hover:bg-emerald-500 hover:text-white transition-all">Apply Setup</button>
+                    <button type="submit" className="w-full py-2 rounded-xl bg-[#523D35] text-white font-serif text-xs">Update Configurations</button>
                   </form>
                 </div>
 
-                <div className={`p-6 rounded-3xl shadow-md ${darkMode ? 'bg-slate-900/50 border border-slate-800' : 'bg-white border border-slate-100'}`}>
-                  <h3 className="font-bold text-base flex items-center gap-2 mb-3"><Plus className="w-4 h-4 text-emerald-400" /> New Subject</h3>
+                <div className="p-5 rounded-3xl border bg-[#523D35]/10 border-[#959D90]/10">
+                  <h3 className="font-serif font-bold text-xs flex items-center gap-2 mb-3 text-[#BBA58F] uppercase"><Plus className="w-4 h-4" /> Add Stream</h3>
                   <form onSubmit={handleAddSubject} className="flex gap-2">
-                    <input type="text" placeholder="e.g. Physics" value={newSubject} onChange={e => setNewSubject(e.target.value)} className={`flex-1 px-3 py-2 rounded-xl text-sm border outline-none ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'}`} />
-                    <button type="submit" className="p-2 bg-emerald-500 rounded-xl text-white hover:bg-emerald-600"><Plus className="w-5 h-5" /></button>
+                    <input type="text" placeholder="Physics" value={newSubject} onChange={e => setNewSubject(e.target.value)} className="flex-1 px-3 py-2 rounded-xl text-xs bg-[#223030]/50 border border-[#959D90]/20 text-[#EFEFE9] outline-none" />
+                    <button type="submit" className="p-2 bg-[#959D90] rounded-xl text-white"><Plus className="w-4 h-4" /></button>
                   </form>
-                </div>
-
-                <div className={`p-4 rounded-3xl shadow-md overflow-hidden ${darkMode ? 'bg-slate-900/50 border border-slate-800' : 'bg-white border border-slate-100'}`}>
-                  <h3 className="font-bold text-xs flex items-center gap-2 mb-3 text-slate-400 uppercase tracking-wider">
-                    📻 Lofi Cafe Radio
-                  </h3>
-                  <iframe 
-                    src="https://www.lofi.cafe/" 
-                    className="w-full h-[300px] rounded-2xl border-0 shadow-inner"
-                    title="Lofi Cafe Player"
-                    allow="autoplay"
-                  ></iframe>
                 </div>
               </div>
             </div>
           )}
 
           {activeTab === 'forest' && (
-            <div className={`p-6 rounded-3xl shadow-xl ${darkMode ? 'bg-slate-900/50 border border-slate-800' : 'bg-white border border-slate-100'}`}>
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h2 className="text-xl font-extrabold flex items-center gap-2"><Leaf className="w-5 h-5 text-emerald-400" /> Pomodoro Canopy</h2>
-                  <p className="text-xs text-slate-400">Every completed focus block plants a permanent visual tree metric.</p>
-                </div>
-                <span className="text-sm font-bold px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full">{forest.length} Trees Grown</span>
+            <div className="p-6 rounded-3xl border bg-[#523D35]/10 border-[#959D90]/10">
+              <h2 className="text-xl font-serif font-bold flex items-center gap-2 mb-4"><Leaf className="w-5 h-5 text-[#959D90]" /> Mature Canopy Oasis</h2>
+              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-4">
+                {forest.map(tree => (
+                  <div key={tree.id} className="p-3 bg-[#223030]/30 border border-[#959D90]/10 rounded-2xl flex flex-col items-center justify-center">
+                    <span className="text-3xl mb-1">🌳</span>
+                    <span className="text-[10px] text-[#BBA58F] font-mono truncate max-w-full">{tree.subject}</span>
+                  </div>
+                ))}
               </div>
-
-              {forest.length === 0 ? (
-                <div className="text-center py-12 border-2 border-dashed border-slate-700/50 rounded-2xl">
-                  <Leaf className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-                  <p className="text-sm text-slate-400">Your ecosystem is clear. Grow your first tree using focus modules!</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-4">
-                  {forest.map(tree => (
-                    <div key={tree.id} className={`p-3 rounded-2xl flex flex-col items-center justify-center gap-1 group relative hover:scale-110 transition-all ${darkMode ? 'bg-slate-800/40 border border-slate-700/50' : 'bg-slate-100 border-slate-200'}`}>
-                      <span className="text-2xl animate-bounce">🌿</span>
-                      <span className="text-[10px] font-bold truncate max-w-full text-slate-400">{tree.subject}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           )}
 
+          {/* 📝 Fully Restored Tasks / Intentions Tab Panel Content */}
           {activeTab === 'todos' && (
-            <div className={`p-6 rounded-3xl shadow-xl space-y-6 ${darkMode ? 'bg-slate-900/50 border border-slate-800' : 'bg-white border border-slate-100'}`}>
-              <div>
-                <h2 className="text-xl font-extrabold flex items-center gap-2"><CheckSquare className="w-5 h-5 text-emerald-400" /> Focus Roadmap</h2>
-              </div>
-              <form onSubmit={(e) => { e.preventDefault(); addTodo(e.target.elements.todoText.value); e.target.reset(); }} className="flex gap-2">
-                <input name="todoText" type="text" placeholder="Add an objective task..." className={`flex-1 px-4 py-3 rounded-xl text-sm border outline-none ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'}`} />
-                <button type="submit" className="px-5 bg-emerald-500 rounded-xl text-white font-bold text-sm hover:bg-emerald-600 transition-all flex items-center gap-2"><Plus className="w-4 h-4" /> Add</button>
+            <div className="p-6 rounded-3xl border bg-[#523D35]/10 border-[#959D90]/10 space-y-6">
+              <h2 className="text-xl font-serif font-bold flex items-center gap-2"><CheckSquare className="w-5 h-5 text-[#959D90]" /> Daily Intentions</h2>
+              <form onSubmit={(e) => { e.preventDefault(); const txt = e.target.elements.todoText.value; if(txt.trim()){setTodos([...todos, {id: Date.now(), text: txt, completed: false}]); e.target.reset();} }} className="flex gap-2">
+                <input name="todoText" type="text" placeholder="What is your focus target right now?" className="flex-1 px-4 py-3 rounded-xl text-sm bg-[#223030] border border-[#959D90]/20 text-[#EFEFE9] outline-none" />
+                <button type="submit" className="px-5 bg-[#523D35] rounded-xl text-white font-serif text-sm">Add Target</button>
               </form>
               <div className="space-y-2">
                 {todos.map(todo => (
-                  <div key={todo.id} className={`flex items-center justify-between p-3.5 rounded-xl border ${darkMode ? 'bg-slate-800/40 border-slate-800' : 'bg-slate-50 border-slate-100'}`}>
+                  <div key={todo.id} className="flex items-center justify-between p-3.5 rounded-xl bg-[#223030]/40 border border-[#959D90]/10">
                     <div className="flex items-center gap-3">
-                      <input type="checkbox" checked={todo.completed} onChange={() => toggleTodo(todo.id)} className="w-4 h-4 rounded text-emerald-500 accent-emerald-500" />
-                      <span className={`text-sm ${todo.completed ? 'line-through text-slate-500' : ''}`}>{todo.text}</span>
+                      <input type="checkbox" checked={todo.completed} onChange={() => setTodos(todos.map(t => t.id === todo.id ? {...t, completed: !t.completed} : t))} className="w-4 h-4 rounded border-[#BBA58F] accent-[#959D90]" />
+                      <span className={`text-sm ${todo.completed ? 'line-through text-[#BBA58F]' : 'text-[#EFEFE9]'}`}>{todo.text}</span>
                     </div>
-                    <button onClick={() => deleteTodo(todo.id)} className="text-slate-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
+                    <button onClick={() => setTodos(todos.filter(t => t.id !== todo.id))} className="text-[#BBA58F] hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 ))}
               </div>
@@ -448,51 +500,36 @@ export default function App() {
           )}
 
           {activeTab === 'notes' && (
-            <div className={`p-6 rounded-3xl shadow-xl space-y-4 ${darkMode ? 'bg-slate-900/50 border border-slate-800' : 'bg-white border border-slate-100'}`}>
-              <h2 className="text-xl font-extrabold flex items-center gap-2"><FileText className="w-5 h-5 text-emerald-400" /> Work Scratchpad</h2>
-              <textarea 
-                value={notes} 
-                onChange={(e) => setNotes(e.target.value)} 
-                placeholder="Type active session parameters or briefs here..." 
-                className={`w-full h-64 p-4 rounded-2xl text-sm border outline-none font-mono resize-none leading-relaxed ${darkMode ? 'bg-slate-800/50 border-slate-700 focus:border-emerald-500/50' : 'bg-slate-50 border-slate-200'}`}
-              />
+            <div className="p-6 rounded-3xl border bg-[#523D35]/10 border-[#959D90]/10 space-y-4">
+              <h2 className="text-xl font-serif font-bold flex items-center gap-2"><FileText className="w-5 h-5 text-[#959D90]" /> Session Journal</h2>
+              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Log session updates here..." className="w-full h-64 p-4 rounded-2xl text-sm bg-[#223030]/30 border border-[#959D90]/10 text-[#EFEFE9] outline-none font-serif resize-none leading-relaxed" />
             </div>
           )}
 
+          {/* 🏆 Fully Restored Firebase Live Lounge Scoreboard Panel Content */}
           {activeTab === 'leaderboard' && (
-            <div className={`p-6 rounded-3xl shadow-xl space-y-4 ${darkMode ? 'bg-slate-900/50 border border-slate-800' : 'bg-white border border-slate-100'}`}>
+            <div className="p-6 rounded-3xl border bg-[#523D35]/10 border-[#959D90]/10 space-y-4">
               <div>
-                <h2 className="text-xl font-extrabold flex items-center gap-2"><Award className="w-5 h-5 text-emerald-400" /> Global Standings</h2>
-                <p className="text-xs text-slate-400">Real-time scoreboard powered by Cloud Firestore. Compete with teammates live!</p>
+                <h2 className="text-xl font-serif font-bold flex items-center gap-2"><Award className="w-5 h-5 text-[#959D90]" /> Shared Standings</h2>
+                <p className="text-xs text-[#BBA58F]">A quiet gathering space showing collective study rhythms from your teammates.</p>
               </div>
-
-              <div className="divide-y divide-slate-800/60">
-                {globalLeaderboard.length === 0 ? (
-                  <div className="text-center py-6 text-xs text-slate-500">Awaiting database connection streams...</div>
-                ) : (
-                  globalLeaderboard.map((leader, idx) => {
-                    const isCurrentUser = leader.id === user?.uid;
-                    return (
-                      <div key={leader.id} className={`flex items-center justify-between py-3.5 px-2 rounded-xl transition-all ${isCurrentUser ? 'bg-emerald-500/10 border border-emerald-500/20' : ''}`}>
-                        <div className="flex items-center gap-4">
-                          <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black ${idx === 0 ? 'bg-amber-400 text-amber-950' : idx === 1 ? 'bg-slate-300 text-slate-900' : 'text-slate-400'}`}>
-                            {idx + 1}
-                          </span>
-                          {leader.photoURL && (
-                            <img src={leader.photoURL} alt="" className="w-6 h-6 rounded-full border border-slate-700" />
-                          )}
-                          <span className={`text-sm font-semibold ${isCurrentUser ? 'text-emerald-400' : ''}`}>
-                            {leader.name} {isCurrentUser && '(You)'}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-6 text-sm">
-                          <span className="font-mono text-slate-400">{leader.score || 0} mins</span>
-                          <span className="text-orange-400 font-bold text-xs">🔥 {leader.streak || 0}d</span>
-                        </div>
+              <div className="divide-y divide-[#BBA58F]/10">
+                {globalLeaderboard.map((leader, idx) => {
+                  const isCurrentUser = leader.id === user?.uid;
+                  return (
+                    <div key={leader.id} className={`flex items-center justify-between py-3.5 px-3 rounded-xl ${isCurrentUser ? 'bg-[#523D35]/20 border border-[#959D90]/20' : ''}`}>
+                      <div className="flex items-center gap-4">
+                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${idx === 0 ? 'bg-[#BBA58F] text-[#223030]' : 'text-[#BBA58F]'}`}>{idx + 1}</span>
+                        {leader.photoURL && <img src={leader.photoURL} alt="" className="w-6 h-6 rounded-full border border-[#BBA58F]/30" />}
+                        <span className="text-sm font-serif">{leader.name} {isCurrentUser && '(You)'}</span>
                       </div>
-                    );
-                  })
-                )}
+                      <div className="flex items-center gap-6 text-xs">
+                        <span className="text-[#BBA58F]">{leader.score || 0} mins</span>
+                        <span className="text-[#959D90] font-bold">🔥 {leader.streak || 0}d</span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
