@@ -73,3 +73,4 @@ Tasks, notes, and session history are saved to your browser's local storage. You
 ## License
 
 MIT
+© 2026 MOHAMMED SUHAYL. All rights reserved.
